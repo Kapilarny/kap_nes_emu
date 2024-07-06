@@ -65,15 +65,15 @@ public:
     sprite& get_name_table(u8 i);
     sprite& get_pattern_table(u8 i, u8 palette);
     bool frame_complete = false;
-private:
 
-    std::shared_ptr<cartridge> cart = nullptr;
-
+    Color pal_screen[0x40]{};
     u8 name_table[2][1024]{};
     u8 palette_table[32]{};
     u8 pattern_table[2][4096]{};
+    bool nmi = false;
+private:
+    std::shared_ptr<cartridge> cart = nullptr;
 
-    Color pal_screen[0x40]{};
     sprite spr_screen = sprite(256, 240);
     sprite spr_name_table[2] = {sprite(256, 240), sprite(256, 240)};
     sprite spr_pattern_table[2] = {sprite(128, 128), sprite(128, 128)};
@@ -124,7 +124,29 @@ private:
 
     u8 address_latch{};
     u8 ppu_data_buffer{};
-    u16 ppu_address{};
+    // u16 ppu_address{};
+
+    union loopy_register {
+        u16 reg = 0x0000;
+        struct {
+            u16 coarse_x : 5;
+            u16 coarse_y : 5;
+            u16 nametable_x : 1;
+            u16 nametable_y : 1;
+            u16 fine_y : 3;
+            u16 unused : 1;
+        };
+    };
+
+    loopy_register vram_addr{};
+    loopy_register tram_addr{};
+
+    u8 fine_x{};
+
+    u8 bg_next_tile_id{};
+    u8 bg_next_tile_attrib{};
+    u8 bg_next_tile_lsb{};
+    u8 bg_next_tile_msb{};
 };
 
 

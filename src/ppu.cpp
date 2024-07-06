@@ -79,8 +79,51 @@ void ppu::connect_cartridge(const std::shared_ptr<cartridge>& cart) {
 }
 
 void ppu::clock() {
+	auto increment_scroll_x = [&]() {
+		if(mask.render_background || mask.render_sprites) {
+			if(vram_addr.coarse_x == 31) {
+				vram_addr.coarse_x = 0;
+				vram_addr.nametable_x = ~vram_addr.nametable_x;
+			} else {
+				vram_addr.coarse_x++;
+			}
+		}
+	};
+
+	if(scanline >= -1 && scanline < 240) {
+		if(scanline == -1 && cycle == 1) {
+			status.vertical_blank = 0;
+		}
+
+		if((cycle >= 2 && cycle < 258) || (cycle >= 321 && cycle < 338)) {
+			switch ((cycle - 1) % 8) {
+				case 0:
+					bg_next_tile_id = ppu_read(0x2000 | (vram_addr.reg & 0x0FFF));
+					break;
+				case 2:
+					bg_next_tile_attrib = ppu_read(0x23C0 | (vram_addr.nametable_y << 11) | (vram_addr.nametable_x << 10) | ((vram_addr.coarse_y >> 2) << 3) | (vram_addr.coarse_x >> 2));
+					if(vram_addr.coarse_y & 0x02) bg_next_tile_attrib >>= 4;
+					if(vram_addr.coarse_x & 0x02) bg_next_tile_attrib >>= 2;
+					bg_next_tile_attrib &= 0x03;
+					break;
+				case 4:
+					bg_next_tile_lsb = ppu_read((control.pattern_background << 12) + ((u16)bg_next_tile_id << 4) + vram_addr.fine_y);
+					break;
+				case 6:
+					bg_next_tile_msb = ppu_read((control.pattern_background << 12) + ((u16)bg_next_tile_id << 4) + vram_addr.fine_y + 8);
+					break;
+				case 7:
+			}
+		}
+	}
+
+	if(scanline == 241 && cycle == 1) {
+		status.vertical_blank = 1;
+		if(control.enable_nmi) nmi = true;
+	}
+
     // Noise (temporary)
-    spr_screen.set_pixel(cycle - 1, scanline, pal_screen[(rand() % 2) ? 0x3F : 0x30]);
+    // spr_screen.set_pixel(cycle - 1, scanline, pal_screen[(rand() % 2) ? 0x3F : 0x30]);
 
     cycle++;
     if(cycle >= 341) {
@@ -97,6 +140,8 @@ void ppu::cpu_write(u16 addr, u8 data) {
     switch (addr) {
         case 0x0000: // Control
         	control.reg = data;
+    		tram_addr.nametable_x = control.nametable_x;
+    		tram_addr.nametable_y = control.nametable_y;
             break;
         case 0x0001: // Mask
         	mask.reg = data;
@@ -109,19 +154,29 @@ void ppu::cpu_write(u16 addr, u8 data) {
         case 0x0004: // OAM Data
             break;
         case 0x0005: // Scroll
+        	if(address_latch == 0) {
+        		fine_x = data & 0x07;
+        		tram_addr.coarse_x = data >> 3;
+        		address_latch = 1;
+        	} else {
+        		tram_addr.fine_y = data & 0x07;
+        		tram_addr.coarse_y = data >> 3;
+        		address_latch = 0;
+        	}
             break;
         case 0x0006: // PPU Address
         	if(address_latch == 0) {
-        		ppu_address = (ppu_address & 0x00FF) | (data << 8);
+        		tram_addr.reg = (tram_addr.reg & 0x00FF) | (data << 8);
         		address_latch = 1;
         	} else {
-        		ppu_address = (ppu_address & 0xFF00) | data;
+        		tram_addr.reg = (tram_addr.reg & 0xFF00) | data;
+        		vram_addr = tram_addr;
         		address_latch = 0;
 			}
             break;
         case 0x0007: // PPU Data
-        	ppu_write(ppu_address, data);
-    		ppu_address++;
+        	ppu_write(vram_addr.reg, data);
+    		vram_addr.reg += control.increment_mode ? 32 : 1;
             break;
     }
 }
@@ -137,7 +192,6 @@ u8 ppu::cpu_read(u16 addr, bool readonly) {
         	data = mask.reg;
             break;
         case 0x0002: // Status
-        	status.vertical_blank = 1;
         	data = (status.reg & 0xE0) | (ppu_data_buffer & 0x1F);
     		status.vertical_blank = 0;
     		address_latch = 0;
@@ -152,10 +206,10 @@ u8 ppu::cpu_read(u16 addr, bool readonly) {
         	break;
         case 0x0007: // PPU Data
         	data = ppu_data_buffer;
-    		ppu_data_buffer = ppu_read(ppu_address);
+    		ppu_data_buffer = ppu_read(vram_addr.reg);
 
-    		if(ppu_address >= 0x3F00) data = ppu_data_buffer;
-    		ppu_address++;
+    		if(vram_addr.reg >= 0x3F00) data = ppu_data_buffer;
+    		vram_addr.reg++;
     		break;
     }
 
@@ -169,7 +223,29 @@ void ppu::ppu_write(u16 addr, u8 data) {
     else if(addr <= 0x1FFF) {
     	pattern_table[(addr & 0x1000) >> 12][addr & 0x0FFF] = data;
     } else if(addr >= 0x2000 && addr <= 0x3EFF) {
+		addr &= 0x0FFF;
 
+		if(cart->mirror == cartridge::MIRROR::VERTICAL) {
+			if(addr >= 0x0000 && addr <= 0x03FF) {
+				name_table[0][addr & 0x03FF] = data;
+			} else if(addr >= 0x0400 && addr <= 0x07FF) {
+				name_table[1][addr & 0x03FF] = data;
+			} else if(addr >= 0x0800 && addr <= 0x0BFF) {
+				name_table[0][addr & 0x03FF] = data;
+			} else if(addr >= 0x0C00 && addr <= 0x0FFF) {
+				name_table[1][addr & 0x03FF] = data;
+			}
+		} else if(cart->mirror == cartridge::MIRROR::HORIZONTAL) {
+			if(addr >= 0x0000 && addr <= 0x03FF) {
+				name_table[0][addr & 0x03FF] = data;
+			} else if(addr >= 0x0400 && addr <= 0x07FF) {
+				name_table[0][addr & 0x03FF] = data;
+			} else if(addr >= 0x0800 && addr <= 0x0BFF) {
+				name_table[1][addr & 0x03FF] = data;
+			} else if(addr >= 0x0C00 && addr <= 0x0FFF) {
+				name_table[1][addr & 0x03FF] = data;
+			}
+		}
     } else if(addr >= 0x3F00 && addr <= 0x3FFF) {
     	addr &= 0x001F;
     	if(addr == 0x0010) addr = 0x0000;
@@ -188,14 +264,36 @@ u8 ppu::ppu_read(u16 addr, bool readonly) {
 	else if(addr >= 0x0000 && addr <= 0x1FFF) {
 		data = pattern_table[(addr & 0x1000) >> 12][addr & 0x0FFF];
 	} else if(addr >= 0x2000 && addr <= 0x3EFF) {
+		addr &= 0x0FFF;
 
+		if(cart->mirror == cartridge::MIRROR::VERTICAL) {
+			if(addr >= 0x0000 && addr <= 0x03FF) {
+				data = name_table[0][addr & 0x03FF];
+			} else if(addr >= 0x0400 && addr <= 0x07FF) {
+				data = name_table[1][addr & 0x03FF];
+			} else if(addr >= 0x0800 && addr <= 0x0BFF) {
+				data = name_table[0][addr & 0x03FF];
+			} else if(addr >= 0x0C00 && addr <= 0x0FFF) {
+				data = name_table[1][addr & 0x03FF];
+			}
+		} else if(cart->mirror == cartridge::MIRROR::HORIZONTAL) {
+			if(addr >= 0x0000 && addr <= 0x03FF) {
+				data = name_table[0][addr & 0x03FF];
+			} else if(addr >= 0x0400 && addr <= 0x07FF) {
+				data = name_table[0][addr & 0x03FF];
+			} else if(addr >= 0x0800 && addr <= 0x0BFF) {
+				data = name_table[1][addr & 0x03FF];
+			} else if(addr >= 0x0C00 && addr <= 0x0FFF) {
+				data = name_table[1][addr & 0x03FF];
+			}
+		}
 	} else if(addr >= 0x3F00 && addr <= 0x3FFF) {
 		addr &= 0x001F;
 		if(addr == 0x0010) addr = 0x0000;
 		if(addr == 0x0014) addr = 0x0004;
 		if(addr == 0x0018) addr = 0x0008;
 		if(addr == 0x001C) addr = 0x000C;
-		data = palette_table[addr] & (mask.grayscale ? 0x30 : 0x3F);
+		data = palette_table[addr];
 	}
 
     return data;
@@ -231,9 +329,9 @@ sprite& ppu::get_pattern_table(u8 i, u8 palette) {
 Color ppu::get_color_from_palette_ram(u8 palette, u8 pixel) {
 	auto ret = pal_screen[ppu_read(0x3F00 + (palette << 2) + pixel) & 0x3F];
 
-	if(ret.r != 'T' && ret.g != 'T' && ret.b != 'T') {
-		LOG("Different color!!!"); // I tried to BP on this line lmao
-	}
+	// if(ret.r != 'T' && ret.g != 'T' && ret.b != 'T') {
+	// 	// LOG("Different color!!!"); // I tried to BP on this line lmao
+	// }
 
 	return ret;
 	// return pal_screen[ppu_read(0x3F00 + (palette << 2) + pixel) & 0x3F];

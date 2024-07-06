@@ -28,6 +28,7 @@ cartridge::cartridge(const std::string &file_path) {
         if(header.mapper1 & 0x04) ifs.seekg(512, std::ios_base::cur);
 
         mapper_id = ((header.mapper2 >> 4) << 4) | (header.mapper1 >> 4);
+        mirror = (header.mapper1 & 0x01) ? VERTICAL : HORIZONTAL;
 
         // file format
         u8 fileType = 1;

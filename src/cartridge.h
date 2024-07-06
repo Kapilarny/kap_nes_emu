@@ -21,6 +21,13 @@ public:
     bool ppu_read(u16 addr, u8 &data);
     bool ppu_write(u16 addr, u8 data);
 
+    enum MIRROR {
+        HORIZONTAL,
+        VERTICAL,
+        ONESCREEN_LO,
+        ONESCREEN_HI
+    } mirror = HORIZONTAL;
+
 private:
     u8 mapper_id = 0;
     u8 prg_banks = 0;

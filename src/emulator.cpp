@@ -71,17 +71,26 @@ void emulator::draw() {
     draw_code(516 * 2, 72 * 2, 26);
 
     // Draw the pattern tables
-    const i32 swatch_size = 6;
+    const i32 swatch_size = 6 * 2;
     for(i32 p = 0; p < 8; p++) {
         for(i32 s = 0; s < 4; s++) {
-            DrawRectangle(516 * 2 + p * (swatch_size * 5) + s * swatch_size, 340 * 2, swatch_size, swatch_size, nes.ppu.get_color_from_palette_ram(p, s));
+            DrawRectangle(516 * 2 + p * (swatch_size * 5) + s * swatch_size, 360 * 2, swatch_size, swatch_size, nes.ppu.get_color_from_palette_ram(p, s));
         }
     }
+
+    // Draw selection reticle around selected palette
+    DrawRectangleLines(516 * 2 + selected_palette * (swatch_size * 5) - 1, 360 * 2 - 1, swatch_size * 4 + 1, swatch_size + 1, WHITE);
 
     draw_sprite(516 * 2, 370 * 2, nes.ppu.get_pattern_table(0, selected_palette), 2);
     draw_sprite(648 * 2, 370 * 2, nes.ppu.get_pattern_table(1, selected_palette), 2);
 
     draw_sprite(0, 0, nes.ppu.get_screen(), 4);
+
+    // for(u8 y = 0; y < 30; y++) {
+    //     for(u8 x = 0; x < 32; x++) {
+    //         DrawString(hex((u32)nes.ppu.name_table[0][y * 32 + x], 2), x * 16 * 2, y * 16 * 2, 10 * 2, WHITE);
+    //     }
+    // }
 }
 
 void emulator::draw_cpu(i32 x, i32 y) {
