@@ -5,8 +5,12 @@
 #ifndef MEM_BUS_H
 #define MEM_BUS_H
 
+#include <memory>
+
+#include "cartridge.h"
 #include "cpu6502.h"
 #include "defines.h"
+#include "ppu.h"
 
 
 class mem_bus {
@@ -14,14 +18,22 @@ public:
     mem_bus();
     ~mem_bus();
 
-    void write(u16 addr, u8 data);
-    u8 read(u16 addr, bool readonly = false);
+    void insert_cartridge(const std::shared_ptr<cartridge>& cart);
+    void reset();
+    void clock();
+
+    void cpu_write(u16 addr, u8 data);
+    u8 cpu_read(u16 addr, bool readonly = false);
 
     // Devices connected to the bus
     cpu6502 cpu;
+    u8 cpu_ram[2048]{};
 
-    // Fake RAM
-    u8 ram[64 * 1024]{};
+    ppu ppu;
+
+    std::shared_ptr<cartridge> cart;
+private:
+    u64 system_clock_counter = 0;
 };
 
 

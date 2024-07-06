@@ -13,7 +13,15 @@ add_executable(kap_nes_emu src/main.cpp
         src/cpu6502.cpp
         src/cpu6502.h
         src/emulator.cpp
-        src/emulator.h)
+        src/emulator.h
+        src/ppu.cpp
+        src/ppu.h
+        src/cartridge.cpp
+        src/cartridge.h
+        src/mappers/mapper.cpp
+        src/mappers/mapper.h
+        src/mappers/impl/mapper_000.cpp
+        src/mappers/impl/mapper_000.h)
 
 target_link_libraries(kap_nes_emu PRIVATE raylib)
 target_include_directories(kap_nes_emu PRIVATE src)

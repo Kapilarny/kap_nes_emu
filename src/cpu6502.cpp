@@ -844,11 +844,11 @@ void cpu6502::set_flag(FLAGS f, bool v) {
 }
 
 u8 cpu6502::read(u16 addr) {
-    return bus->read(addr, false);
+    return bus->cpu_read(addr, false);
 }
 
 void cpu6502::write(u16 addr, u8 data) {
-    bus->write(addr, data);
+    bus->cpu_write(addr, data);
 }
 
 std::map<u16, std::string> cpu6502::disassemble(u16 start, u16 stop) {
@@ -870,53 +870,53 @@ std::map<u16, std::string> cpu6502::disassemble(u16 start, u16 stop) {
 		std::string sInst = "$" + hex(addr, 4) + ": ";
 
 		// Read opcode
-		u8 opcode = bus->read(addr, true); addr++;
+		u8 opcode = bus->cpu_read(addr, true); addr++;
 		auto& inst = lookup[opcode];
 		sInst += inst.name + " ";
 
 		if (inst.addrmode == &cpu6502::IMP) {
 			sInst += " {IMP}";
 		} else if (inst.addrmode == &cpu6502::IMM) {
-			value = bus->read(addr, true); addr++;
+			value = bus->cpu_read(addr, true); addr++;
 			sInst += "#$" + hex(value, 2) + " {IMM}";
 		} else if (inst.addrmode == &cpu6502::ZP0) {
-			low = bus->read(addr, true); addr++;
+			low = bus->cpu_read(addr, true); addr++;
 			high = 0x00;
 			sInst += "$" + hex(low, 2) + " {ZP0}";
 		} else if (inst.addrmode == &cpu6502::ZPX) {
-			low = bus->read(addr, true); addr++;
+			low = bus->cpu_read(addr, true); addr++;
 			high = 0x00;
 			sInst += "$" + hex(low, 2) + ", X {ZPX}";
 		} else if (inst.addrmode == &cpu6502::ZPY) {
-			low = bus->read(addr, true); addr++;
+			low = bus->cpu_read(addr, true); addr++;
 			high = 0x00;
 			sInst += "$" + hex(low, 2) + ", Y {ZPY}";
 		} else if (inst.addrmode == &cpu6502::IZX) {
-			low = bus->read(addr, true); addr++;
+			low = bus->cpu_read(addr, true); addr++;
 			high = 0x00;
 			sInst += "($" + hex(low, 2) + ", X) {IZX}";
 		} else if (inst.addrmode == &cpu6502::IZY) {
-			low = bus->read(addr, true); addr++;
+			low = bus->cpu_read(addr, true); addr++;
 			high = 0x00;
 			sInst += "($" + hex(low, 2) + "), Y {IZY}";
 		} else if (inst.addrmode == &cpu6502::ABS) {
-			low = bus->read(addr, true); addr++;
-			high = bus->read(addr, true); addr++;
+			low = bus->cpu_read(addr, true); addr++;
+			high = bus->cpu_read(addr, true); addr++;
 			sInst += "$" + hex((u16)(high << 8) | low, 4) + " {ABS}";
 		} else if (inst.addrmode == &cpu6502::ABX) {
-			low = bus->read(addr, true); addr++;
-			high = bus->read(addr, true); addr++;
+			low = bus->cpu_read(addr, true); addr++;
+			high = bus->cpu_read(addr, true); addr++;
 			sInst += "$" + hex((u16)(high << 8) | low, 4) + ", X {ABX}";
 		} else if (inst.addrmode == &cpu6502::ABY) {
-			low = bus->read(addr, true); addr++;
-			high = bus->read(addr, true); addr++;
+			low = bus->cpu_read(addr, true); addr++;
+			high = bus->cpu_read(addr, true); addr++;
 			sInst += "$" + hex((u16)(high << 8) | low, 4) + ", Y {ABY}";
 		} else if (inst.addrmode == &cpu6502::IND) {
-			low = bus->read(addr, true); addr++;
-			high = bus->read(addr, true); addr++;
+			low = bus->cpu_read(addr, true); addr++;
+			high = bus->cpu_read(addr, true); addr++;
 			sInst += "($" + hex((u16)(high << 8) | low, 4) + ") {IND}";
 		} else if (inst.addrmode == &cpu6502::REL) {
-			value = bus->read(addr, true); addr++;
+			value = bus->cpu_read(addr, true); addr++;
 			sInst += "$" + hex(value, 2) + " [$" + hex(addr + value, 4) + "] {REL}";
 		}
 

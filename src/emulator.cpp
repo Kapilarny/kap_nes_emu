@@ -22,65 +22,57 @@ std::string hex(u32 n, u8 d)
 };
 
 emulator::emulator() {
+    cart = std::make_shared<cartridge>("nestest.nes");
 
-    /*
-            *=$8000
-            LDX #10
-            STX $0000
-            LDX #3
-            STX $0001
-            LDY $0000
-            LDA #0
-            CLC
-            loop
-            ADC $0001
-            DEY
-            BNE loop
-            STA $0002
-            NOP
-            NOP
-            NOP
-    */
-    std::stringstream ss;
-    ss << "A2 0A 8E 00 00 A2 03 8E 01 00 AC 00 00 A9 00 18 6D 01 00 88 D0 FA 8D 02 00 EA EA EA";
-    u16 offset = 0x8000;
+    // Insert the cartridge into the NES
+    nes.insert_cartridge(cart);
 
-    while(!ss.eof()) {
-        std::string b;
-        ss >> b;
-        nes.ram[offset++] = (u8) std::stoul(b, nullptr, 16);
-    }
-
-    // Set Reset Vector
-    nes.ram[0xFFFC] = 0x00;
-    nes.ram[0xFFFD] = 0x80;
-
-    // Extract disasm
+    // Extract the map of the assembled code
     mapAsm = nes.cpu.disassemble(0x0000, 0xFFFF);
 
-    // Reset
-    nes.cpu.reset();
+    nes.reset();
 }
 
 void emulator::update() {
-    if(IsKeyPressed(KEY_SPACE)) {
-        do {
-            nes.cpu.clock();
-        } while(!nes.cpu.complete());
+    if(emulation_run) {
+        if(residual_time > 0.0f) {
+            residual_time -= GetFrameTime() / 1000.0f;
+        } else {
+            residual_time += (1.0f / 60.0f) - GetFrameTime() / 1000.0f;
+            do { nes.clock(); } while (!nes.ppu.frame_complete);
+            nes.ppu.frame_complete = false;
+        }
+    } else {
+        if(IsKeyPressed(KEY_C)) {
+            do { nes.clock(); } while (!nes.cpu.complete());
+
+            do { nes.clock(); } while (nes.cpu.complete());
+        }
+
+        if(IsKeyPressed(KEY_F)) {
+            do { nes.clock(); } while (!nes.cpu.complete());
+            do { nes.clock(); } while (nes.cpu.complete());
+
+            nes.ppu.frame_complete = false;
+        }
     }
 
-    if(IsKeyPressed(KEY_R)) nes.cpu.reset();
-    if(IsKeyPressed(KEY_I)) nes.cpu.irq();
-    if(IsKeyPressed(KEY_N)) nes.cpu.nmi();
+    if(IsKeyPressed(KEY_R)) nes.reset();
+    if(IsKeyPressed(KEY_SPACE)) emulation_run = !emulation_run;
 }
 
 void emulator::draw() {
-    draw_ram(2 * 2, 2 * 2, 0x0000, 16, 16);
-    draw_ram(2 * 2, 182 * 2, 0x8000, 16, 16);
-    draw_cpu(448 * 2, 2 * 2);
-    draw_code(448 * 2, 72 * 2, 26);
+    // draw_ram(2 * 2, 2 * 2, 0x0000, 16, 16);
+    // draw_ram(2 * 2, 182 * 2, 0x8000, 16, 16);
+    // draw_cpu(448 * 2, 2 * 2);
+    // draw_code(448 * 2, 72 * 2, 26);
 
-    DrawString("SPACE = Step Instruction | R = RESET | I = IRQ | N = NMI", 10 * 2, 370 * 2, 10 * 2, WHITE);
+    // DrawString("SPACE = Step Instruction | R = RESET | I = IRQ | N = NMI", 10 * 2, 370 * 2, 10 * 2, WHITE);
+
+    draw_cpu(516 * 2, 2 * 2);
+    draw_code(516 * 2, 72 * 2, 26);
+
+    draw_sprite(0, 0, nes.ppu.get_screen());
 }
 
 void emulator::draw_cpu(i32 x, i32 y) {
@@ -110,7 +102,7 @@ void emulator::draw_ram(i32 x, i32 y, u16 addr, u16 rows, u16 cols) {
     for(i32 row = 0; row < rows; row++) {
         std::string offset = "$" + hex(addr, 4) + ":";
         for(i32 col = 0; col < cols; col++) {
-            offset += " " + hex(nes.read(addr, true), 2);
+            offset += " " + hex(nes.cpu_read(addr, true), 2);
             addr++;
         }
         DrawString(offset, ramX, ramY, 10 * 2, WHITE);
@@ -139,6 +131,15 @@ void emulator::draw_code(i32 x, i32 y, i32 lines) {
             if(--it_a != mapAsm.begin()) {
                 DrawString((*it_a).second, x, lineY, 10 * 2, WHITE);
             }
+        }
+    }
+}
+
+void emulator::draw_sprite(i32 x, i32 y, const sprite &spr, i32 scale) {
+    for(i32 j = 0; j < spr.h; j++) {
+        for(i32 i = 0; i < spr.w; i++) {
+            Color c = spr.data[j * spr.w + i];
+            DrawRectangle(x + i * scale, y + j * scale, scale, scale, c);
         }
     }
 }
