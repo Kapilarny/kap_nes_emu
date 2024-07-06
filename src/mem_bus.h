@@ -32,8 +32,18 @@ public:
     ppu ppu;
 
     std::shared_ptr<cartridge> cart;
+
+    u8 controller[2]{};
 private:
     u64 system_clock_counter = 0;
+    u8 controller_state[2]{};
+
+    u8 dma_page = 0x00;
+    u8 dma_addr = 0x00;
+    u8 dma_data = 0x00;
+
+    bool dma_transfer = false;
+    bool dma_dummy = true;
 };
 
 
