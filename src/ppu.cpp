@@ -90,14 +90,68 @@ void ppu::clock() {
 		}
 	};
 
+	auto increment_scroll_y = [&]() {
+		if(mask.render_background || mask.render_sprites) {
+			if(vram_addr.fine_y < 7) {
+				vram_addr.fine_y++;
+			} else {
+				vram_addr.fine_y = 0;
+				if(vram_addr.coarse_y == 29) {
+					vram_addr.coarse_y = 0;
+					vram_addr.nametable_y = ~vram_addr.nametable_y;
+				} else if(vram_addr.coarse_y == 31) {
+					vram_addr.coarse_y = 0;
+				} else {
+					vram_addr.coarse_y++;
+				}
+			}
+		}
+	};
+
+	auto transfer_address_x = [&]() {
+		if(mask.render_background || mask.render_sprites) {
+			vram_addr.nametable_x = tram_addr.nametable_x;
+			vram_addr.coarse_x = tram_addr.coarse_x;
+		}
+	};
+
+	auto transfer_address_y = [&]() {
+		if(mask.render_background || mask.render_sprites) {
+			vram_addr.fine_y = tram_addr.fine_y;
+			vram_addr.nametable_y = tram_addr.nametable_y;
+			vram_addr.coarse_y = tram_addr.coarse_y;
+		}
+	};
+
+	auto load_bg_shifters = [&]() {
+		bg_shifter_pattern_lo = (bg_shifter_pattern_lo & 0xFF00) | bg_next_tile_lsb;
+		bg_shifter_pattern_hi = (bg_shifter_pattern_hi & 0xFF00) | bg_next_tile_msb;
+
+		bg_shifter_attrib_lo = (bg_shifter_attrib_lo & 0xFF00) | ((bg_next_tile_attrib & 0b01) ? 0xFF : 0x00);
+		bg_shifter_attrib_hi = (bg_shifter_attrib_hi & 0xFF00) | ((bg_next_tile_attrib & 0b10) ? 0xFF : 0x00);
+	};
+
+	auto update_shifters = [&]() {
+		if(mask.render_background) {
+			bg_shifter_pattern_lo <<= 1;
+			bg_shifter_pattern_hi <<= 1;
+
+			bg_shifter_attrib_lo <<= 1;
+			bg_shifter_attrib_hi <<= 1;
+		}
+	};
+
 	if(scanline >= -1 && scanline < 240) {
 		if(scanline == -1 && cycle == 1) {
 			status.vertical_blank = 0;
 		}
 
 		if((cycle >= 2 && cycle < 258) || (cycle >= 321 && cycle < 338)) {
+			update_shifters();
+
 			switch ((cycle - 1) % 8) {
 				case 0:
+					load_bg_shifters();
 					bg_next_tile_id = ppu_read(0x2000 | (vram_addr.reg & 0x0FFF));
 					break;
 				case 2:
@@ -113,8 +167,27 @@ void ppu::clock() {
 					bg_next_tile_msb = ppu_read((control.pattern_background << 12) + ((u16)bg_next_tile_id << 4) + vram_addr.fine_y + 8);
 					break;
 				case 7:
+					increment_scroll_x();
+					break;
+				default: break;
 			}
 		}
+
+		if(cycle == 256) {
+			increment_scroll_y();
+		}
+
+		if(cycle == 257) {
+			transfer_address_x();
+		}
+
+		if(scanline == -1 && cycle >= 280 && cycle < 305) {
+			transfer_address_y();
+		}
+	}
+
+	if(scanline == 240) {
+		// Do nothing
 	}
 
 	if(scanline == 241 && cycle == 1) {
@@ -124,6 +197,25 @@ void ppu::clock() {
 
     // Noise (temporary)
     // spr_screen.set_pixel(cycle - 1, scanline, pal_screen[(rand() % 2) ? 0x3F : 0x30]);
+
+	u8 bg_pixel = 0x00;
+	u8 bg_palette = 0x00;
+
+	if(mask.render_background) {
+		u16 bit_mux = 0x8000 >> fine_x;
+
+		u8 p0_pixel = (bg_shifter_pattern_lo & bit_mux) > 0;
+		u8 p1_pixel = (bg_shifter_pattern_hi & bit_mux) > 0;
+
+		bg_pixel = (p1_pixel << 1) | p0_pixel;
+
+		u8 bg_pal0 = (bg_shifter_attrib_lo & bit_mux) > 0;
+		u8 bg_pal1 = (bg_shifter_attrib_hi & bit_mux) > 0;
+
+		bg_palette = (bg_pal1 << 1) | bg_pal0;
+	}
+
+	spr_screen.set_pixel(cycle - 1, scanline, get_color_from_palette_ram(bg_palette, bg_pixel));
 
     cycle++;
     if(cycle >= 341) {

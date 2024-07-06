@@ -147,6 +147,11 @@ private:
     u8 bg_next_tile_attrib{};
     u8 bg_next_tile_lsb{};
     u8 bg_next_tile_msb{};
+
+    u16 bg_shifter_pattern_lo{};
+    u16 bg_shifter_pattern_hi{};
+    u16 bg_shifter_attrib_lo{};
+    u16 bg_shifter_attrib_hi{};
 };
 
 

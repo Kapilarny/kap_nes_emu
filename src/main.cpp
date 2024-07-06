@@ -24,6 +24,8 @@ int main() {
 
         emu.draw();
 
+        // Draw FPS
+        SetWindowTitle(TextFormat("Kap NES Emulator | FPS: %d", GetFPS()));
         EndDrawing();
     }
 
