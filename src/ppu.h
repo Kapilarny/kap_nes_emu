@@ -59,12 +59,13 @@ public:
     void ppu_write(u16 addr, u8 data);
     u8 ppu_read(u16 addr, bool readonly = false);
 
+    Color get_color_from_palette_ram(u8 palette, u8 pixel);
+
     sprite& get_screen() { return spr_screen; }
     sprite& get_name_table(u8 i);
     sprite& get_pattern_table(u8 i, u8 palette);
     bool frame_complete = false;
 private:
-    Color& get_color_from_palette_ram(u8 palette, u8 pixel);
 
     std::shared_ptr<cartridge> cart = nullptr;
 

@@ -9,7 +9,7 @@
 
 int main() {
     const i32 screenW = 780 * 2;
-    const i32 screenH = 480 * 2;
+    const i32 screenH = 480 * 2 + 100;
 
     InitWindow(screenW, screenH, "Kap NES Emulator");
     SetTargetFPS(60);

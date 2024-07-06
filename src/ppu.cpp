@@ -99,9 +99,10 @@ void ppu::cpu_write(u16 addr, u8 data) {
         	control.reg = data;
             break;
         case 0x0001: // Mask
-        	control.reg = data;
+        	mask.reg = data;
             break;
         case 0x0002: // Status
+        	// status.reg = data;
             break;
         case 0x0003: // OAM Address
             break;
@@ -111,14 +112,16 @@ void ppu::cpu_write(u16 addr, u8 data) {
             break;
         case 0x0006: // PPU Address
         	if(address_latch == 0) {
-        		ppu_address = (ppu_address & 0xFF00) | data;
+        		ppu_address = (ppu_address & 0x00FF) | (data << 8);
         		address_latch = 1;
         	} else {
-        		ppu_address = (ppu_address & 0x00FF) | (data << 8);
+        		ppu_address = (ppu_address & 0xFF00) | data;
         		address_latch = 0;
 			}
             break;
         case 0x0007: // PPU Data
+        	ppu_write(ppu_address, data);
+    		ppu_address++;
             break;
     }
 }
@@ -128,11 +131,17 @@ u8 ppu::cpu_read(u16 addr, bool readonly) {
 
     switch(addr) {
         case 0x0000: // Control
+        	data = control.reg;
             break;
         case 0x0001: // Mask
+        	data = mask.reg;
             break;
         case 0x0002: // Status
-            break;
+        	status.vertical_blank = 1;
+        	data = (status.reg & 0xE0) | (ppu_data_buffer & 0x1F);
+    		status.vertical_blank = 0;
+    		address_latch = 0;
+        	break;
         case 0x0003: // OAM Address
             break;
         case 0x0004: // OAM Data
@@ -142,7 +151,12 @@ u8 ppu::cpu_read(u16 addr, bool readonly) {
         case 0x0006: // PPU Address
         	break;
         case 0x0007: // PPU Data
-            break;
+        	data = ppu_data_buffer;
+    		ppu_data_buffer = ppu_read(ppu_address);
+
+    		if(ppu_address >= 0x3F00) data = ppu_data_buffer;
+    		ppu_address++;
+    		break;
     }
 
     return data;
@@ -171,7 +185,7 @@ u8 ppu::ppu_read(u16 addr, bool readonly) {
 	addr &= 0x3FFF;
 
     if(cart->ppu_read(addr, data)) {}
-	else if(addr <= 0x1FFF) {
+	else if(addr >= 0x0000 && addr <= 0x1FFF) {
 		data = pattern_table[(addr & 0x1000) >> 12][addr & 0x0FFF];
 	} else if(addr >= 0x2000 && addr <= 0x3EFF) {
 
@@ -181,7 +195,7 @@ u8 ppu::ppu_read(u16 addr, bool readonly) {
 		if(addr == 0x0014) addr = 0x0004;
 		if(addr == 0x0018) addr = 0x0008;
 		if(addr == 0x001C) addr = 0x000C;
-		data = palette_table[addr];
+		data = palette_table[addr] & (mask.grayscale ? 0x30 : 0x3F);
 	}
 
     return data;
@@ -197,15 +211,15 @@ sprite& ppu::get_pattern_table(u8 i, u8 palette) {
 			u16 offset = tileY * 256 + tileX * 16;
 
 			for(u16 row = 0; row < 8; row++) {
-				u8 tile_lsb = ppu_read(i * 0x1000 + offset + row + 0);
-				u8 tile_msb = ppu_read(i * 0x1000 + offset + row + 8);
+				u8 tile_lsb = ppu_read(i * 0x1000 + offset + row + 0x0000);
+				u8 tile_msb = ppu_read(i * 0x1000 + offset + row + 0x0008);
 
 				for(u16 col = 0; col < 8; col++) {
 					u8 pixel = (tile_lsb & 0x01) + (tile_msb & 0x01);
 					tile_lsb >>= 1;
 					tile_msb >>= 1;
 
-					spr_pattern_table[i].set_pixel(tileX * 8 + (7 - col), tileY * 8 + row, pal_screen[pixel]);
+					spr_pattern_table[i].set_pixel(tileX * 8 + (7 - col), tileY * 8 + row, get_color_from_palette_ram(palette, pixel));
 				}
 			}
 		}
@@ -214,7 +228,14 @@ sprite& ppu::get_pattern_table(u8 i, u8 palette) {
 	return spr_pattern_table[i];
 }
 
-Color& ppu::get_color_from_palette_ram(u8 palette, u8 pixel) {
-	return pal_screen[ppu_read(0x3F00 + (palette << 2) + pixel)];
+Color ppu::get_color_from_palette_ram(u8 palette, u8 pixel) {
+	auto ret = pal_screen[ppu_read(0x3F00 + (palette << 2) + pixel) & 0x3F];
+
+	if(ret.r != 'T' && ret.g != 'T' && ret.b != 'T') {
+		LOG("Different color!!!"); // I tried to BP on this line lmao
+	}
+
+	return ret;
+	// return pal_screen[ppu_read(0x3F00 + (palette << 2) + pixel) & 0x3F];
 }
 

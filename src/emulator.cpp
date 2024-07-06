@@ -53,7 +53,10 @@ void emulator::update() {
 
     if(IsKeyPressed(KEY_R)) nes.reset();
     if(IsKeyPressed(KEY_SPACE)) emulation_run = !emulation_run;
-    if(IsKeyPressed(KEY_P)) (++selected_palette) &= 0x07;
+    if(IsKeyPressed(KEY_P)) {
+        (++selected_palette) &= 0x07;
+        LOG("Selected Palette: %d", selected_palette);
+    }
 }
 
 void emulator::draw() {
@@ -66,6 +69,14 @@ void emulator::draw() {
 
     draw_cpu(516 * 2, 2 * 2);
     draw_code(516 * 2, 72 * 2, 26);
+
+    // Draw the pattern tables
+    const i32 swatch_size = 6;
+    for(i32 p = 0; p < 8; p++) {
+        for(i32 s = 0; s < 4; s++) {
+            DrawRectangle(516 * 2 + p * (swatch_size * 5) + s * swatch_size, 340 * 2, swatch_size, swatch_size, nes.ppu.get_color_from_palette_ram(p, s));
+        }
+    }
 
     draw_sprite(516 * 2, 370 * 2, nes.ppu.get_pattern_table(0, selected_palette), 2);
     draw_sprite(648 * 2, 370 * 2, nes.ppu.get_pattern_table(1, selected_palette), 2);
