@@ -11,13 +11,16 @@
 
 class emulator {
 public:
+    emulator();
+
     void update();
     void draw();
 private:
     void draw_cpu(i32 x, i32 y);
     void draw_ram(i32 x, i32 y, u16 addr, u16 rows, u16 cols);
-    void draw_code(i32 x, i32 y, u16 addr, u16 rows, u16 cols);
+    void draw_code(i32 x, i32 y, i32 lines);
 
+    std::map<u16, std::string> mapAsm;
     mem_bus nes;
 };
 
