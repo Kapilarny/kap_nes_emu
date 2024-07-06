@@ -8,7 +8,7 @@
 #include "emulator.h"
 
 int main() {
-    const i32 screenW = 640 * 2;
+    const i32 screenW = 780 * 2;
     const i32 screenH = 480 * 2;
 
     InitWindow(screenW, screenH, "Kap NES Emulator");

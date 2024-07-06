@@ -120,7 +120,7 @@ bool cpu6502::complete() {
 }
 
 u8 cpu6502::fetch() {
-	if(!(lookup[opcode].addrmode == &cpu6502::IMP)) fetched = read(addr_abs);
+	if(lookup[opcode].addrmode != &cpu6502::IMP) fetched = read(addr_abs);
 
 	return fetched;
 }
@@ -917,7 +917,7 @@ std::map<u16, std::string> cpu6502::disassemble(u16 start, u16 stop) {
 			sInst += "($" + hex((u16)(high << 8) | low, 4) + ") {IND}";
 		} else if (inst.addrmode == &cpu6502::REL) {
 			value = bus->cpu_read(addr, true); addr++;
-			sInst += "$" + hex(value, 2) + " [$" + hex(addr + value, 4) + "] {REL}";
+			sInst += "$" + hex(value, 2) + " [$" + hex(addr + (i8)value, 4) + "] {REL}";
 		}
 
 		mapLines[line_addr] = sInst;

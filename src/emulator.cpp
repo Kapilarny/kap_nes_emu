@@ -28,20 +28,15 @@ emulator::emulator() {
     nes.insert_cartridge(cart);
 
     // Extract the map of the assembled code
-    mapAsm = nes.cpu.disassemble(0x0000, 0xFFFF);
+    map_asm = nes.cpu.disassemble(0x0000, 0xFFFF);
 
     nes.reset();
 }
 
 void emulator::update() {
     if(emulation_run) {
-        if(residual_time > 0.0f) {
-            residual_time -= GetFrameTime() / 1000.0f;
-        } else {
-            residual_time += (1.0f / 60.0f) - GetFrameTime() / 1000.0f;
-            do { nes.clock(); } while (!nes.ppu.frame_complete);
-            nes.ppu.frame_complete = false;
-        }
+        do { nes.clock(); } while (!nes.ppu.frame_complete);
+        nes.ppu.frame_complete = false;
     } else {
         if(IsKeyPressed(KEY_C)) {
             do { nes.clock(); } while (!nes.cpu.complete());
@@ -50,8 +45,7 @@ void emulator::update() {
         }
 
         if(IsKeyPressed(KEY_F)) {
-            do { nes.clock(); } while (!nes.cpu.complete());
-            do { nes.clock(); } while (nes.cpu.complete());
+            do { nes.clock(); } while (!nes.ppu.frame_complete);
 
             nes.ppu.frame_complete = false;
         }
@@ -59,6 +53,7 @@ void emulator::update() {
 
     if(IsKeyPressed(KEY_R)) nes.reset();
     if(IsKeyPressed(KEY_SPACE)) emulation_run = !emulation_run;
+    if(IsKeyPressed(KEY_P)) (++selected_palette) &= 0x07;
 }
 
 void emulator::draw() {
@@ -72,7 +67,10 @@ void emulator::draw() {
     draw_cpu(516 * 2, 2 * 2);
     draw_code(516 * 2, 72 * 2, 26);
 
-    draw_sprite(0, 0, nes.ppu.get_screen());
+    draw_sprite(516 * 2, 370 * 2, nes.ppu.get_pattern_table(0, selected_palette), 2);
+    draw_sprite(648 * 2, 370 * 2, nes.ppu.get_pattern_table(1, selected_palette), 2);
+
+    draw_sprite(0, 0, nes.ppu.get_screen(), 4);
 }
 
 void emulator::draw_cpu(i32 x, i32 y) {
@@ -111,24 +109,24 @@ void emulator::draw_ram(i32 x, i32 y, u16 addr, u16 rows, u16 cols) {
 }
 
 void emulator::draw_code(i32 x, i32 y, i32 lines) {
-    auto it_a = mapAsm.find(nes.cpu.pc);
+    auto it_a = map_asm.find(nes.cpu.pc);
     i32 lineY = (lines >> 1) * 10 * 2 + y;
-    if(it_a != mapAsm.end()) {
+    if(it_a != map_asm.end()) {
         DrawString((*it_a).second, x, lineY, 10 * 2, SKYBLUE);
         while(lineY < (lines * 10 * 2) + y) {
             lineY += 10 * 2;
-            if(++it_a != mapAsm.begin()) {
+            if(++it_a != map_asm.begin()) {
                 DrawString((*it_a).second, x, lineY, 10 * 2, WHITE);
             }
         }
     }
 
-    it_a = mapAsm.find(nes.cpu.pc);
+    it_a = map_asm.find(nes.cpu.pc);
     lineY = (lines >> 1) * 10 * 2 + y;
-    if(it_a != mapAsm.begin()) {
+    if(it_a != map_asm.begin()) {
         while(lineY > y) {
             lineY -= 10 * 2;
-            if(--it_a != mapAsm.begin()) {
+            if(--it_a != map_asm.begin()) {
                 DrawString((*it_a).second, x, lineY, 10 * 2, WHITE);
             }
         }
@@ -138,7 +136,7 @@ void emulator::draw_code(i32 x, i32 y, i32 lines) {
 void emulator::draw_sprite(i32 x, i32 y, const sprite &spr, i32 scale) {
     for(i32 j = 0; j < spr.h; j++) {
         for(i32 i = 0; i < spr.w; i++) {
-            Color c = spr.data[j * spr.w + i];
+            Color c = spr.get_pixel(i, j);
             DrawRectangle(x + i * scale, y + j * scale, scale, scale, c);
         }
     }

@@ -22,12 +22,13 @@ private:
 
     void draw_sprite(i32 x, i32 y, const sprite& spr, i32 scale = 1);
 
-    std::map<u16, std::string> mapAsm;
+    std::map<u16, std::string> map_asm;
     mem_bus nes;
     std::shared_ptr<cartridge> cart;
 
     bool emulation_run = false;
     f32 residual_time = 0.0f;
+    u8 selected_palette = 0x00;
 };
 
 
