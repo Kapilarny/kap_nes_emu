@@ -3,10 +3,17 @@ project(kap_nes_emu)
 
 set(CMAKE_CXX_STANDARD 17)
 
+add_subdirectory(external/raylib)
+
 add_executable(kap_nes_emu src/main.cpp
         src/defines.h
         src/logger.h
-        src/bus.cpp
-        src/bus.h
-        src/cpu.cpp
-        src/cpu.h)
+        src/mem_bus.cpp
+        src/mem_bus.h
+        src/cpu6502.cpp
+        src/cpu6502.h
+        src/emulator.cpp
+        src/emulator.h)
+
+target_link_libraries(kap_nes_emu PRIVATE raylib)
+target_include_directories(kap_nes_emu PRIVATE src)

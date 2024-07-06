@@ -5,6 +5,7 @@
 #ifndef CPU_H
 #define CPU_H
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -22,15 +23,15 @@ public:
     void irq();
     void nmi();
 
+    bool complete();
+
     u8 fetch();
 
     void connect_bus(mem_bus* n) { bus = n; }
 
-    u8 fetched = 0x00;
-    u16 addr_abs = 0x0000;
-    u16 addr_rel = 0x00;
-    u8 opcode = 0x00;
-    u8 cycles = 0;
+    // Produces a map of strings, with keys equivalent to instruction start locations
+    // in memory, for the specified range
+    std::map<u16, std::string> disassemble(u16 start, u16 stop);
 
     // Cpu Stuff
     enum FLAGS {
@@ -80,6 +81,14 @@ private:
 
     u8 get_flag(FLAGS f);
     void set_flag(FLAGS f, bool v);
+
+    u8 fetched = 0x00;
+    u16 addr_abs = 0x0000;
+    u16 addr_rel = 0x00;
+    u8 opcode = 0x00;
+    u8 cycles = 0;
+
+    u64 clock_count = 0;
 
     struct instruction {
         std::string name;
