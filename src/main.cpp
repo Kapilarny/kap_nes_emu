@@ -6,7 +6,9 @@
 
 #define OLC_PGE_APPLICATION
 #include <olcPixelGameEngine.h>
+#include <xinput.h>
 
+#include "gamepad.h"
 #include "mem_bus.h"
 
 class app : public olc::PixelGameEngine {
@@ -94,8 +96,10 @@ private:
 
 	bool OnUserCreate() override
 	{
+		controller = gamepad();
+
 		// Load the cartridge
-		cart = std::make_shared<cartridge>("donkey kong.nes");
+		cart = std::make_shared<cartridge>("cart.nes");
 
 		// Insert into NES
 		nes.insert_cartridge(cart);
@@ -112,15 +116,28 @@ private:
 	{
 		Clear(olc::DARK_BLUE);
 
+		controller.refresh();
+
+		bool aButton = GetKey(olc::Key::X).bHeld || controller.is_pressed(XINPUT_GAMEPAD_A);
+		bool bButton = GetKey(olc::Key::Z).bHeld || controller.is_pressed(XINPUT_GAMEPAD_X);
+
+		bool start_button = GetKey(olc::Key::SPACE).bHeld || controller.is_pressed(XINPUT_GAMEPAD_START);
+		bool select_button = GetKey(olc::Key::P).bHeld || controller.is_pressed(XINPUT_GAMEPAD_BACK);
+
+		bool up_button = GetKey(olc::Key::UP).bHeld || controller.is_pressed(XINPUT_GAMEPAD_DPAD_UP);
+		bool down_button = GetKey(olc::Key::DOWN).bHeld || controller.is_pressed(XINPUT_GAMEPAD_DPAD_DOWN);
+		bool left_button = GetKey(olc::Key::LEFT).bHeld || controller.is_pressed(XINPUT_GAMEPAD_DPAD_LEFT);
+		bool right_button = GetKey(olc::Key::RIGHT).bHeld || controller.is_pressed(XINPUT_GAMEPAD_DPAD_RIGHT);
+
 		nes.controller[0] = 0x00;
-		nes.controller[0] |= GetKey(olc::Key::X).bHeld ? 0x80 : 0x00;     // A Button
-		nes.controller[0] |= GetKey(olc::Key::Z).bHeld ? 0x40 : 0x00;     // B Button
-		nes.controller[0] |= GetKey(olc::Key::A).bHeld ? 0x20 : 0x00;     // Select
-		nes.controller[0] |= GetKey(olc::Key::S).bHeld ? 0x10 : 0x00;     // Start
-		nes.controller[0] |= GetKey(olc::Key::UP).bHeld ? 0x08 : 0x00;
-		nes.controller[0] |= GetKey(olc::Key::DOWN).bHeld ? 0x04 : 0x00;
-		nes.controller[0] |= GetKey(olc::Key::LEFT).bHeld ? 0x02 : 0x00;
-		nes.controller[0] |= GetKey(olc::Key::RIGHT).bHeld ? 0x01 : 0x00;
+		nes.controller[0] |= aButton ? 0x80 : 0x00;     // A Button
+		nes.controller[0] |= bButton ? 0x40 : 0x00;     // B Button
+		nes.controller[0] |= select_button ? 0x20 : 0x00;     // Select
+		nes.controller[0] |= start_button ? 0x10 : 0x00;     // Start
+		nes.controller[0] |= up_button ? 0x08 : 0x00;
+		nes.controller[0] |= down_button ? 0x04 : 0x00;
+		nes.controller[0] |= left_button ? 0x02 : 0x00;
+		nes.controller[0] |= right_button ? 0x01 : 0x00;
 
 		if (GetKey(olc::Key::SPACE).bPressed) emulation_run = !emulation_run;
 		if (GetKey(olc::Key::R).bPressed) nes.reset();
@@ -169,7 +186,7 @@ private:
 			std::string s = hex(i, 2) + ": (" + std::to_string(nes.ppu.p_oam[i * 4 + 3])
 				+ ", " + std::to_string(nes.ppu.p_oam[i * 4 + 0]) + ") "
 				+ "ID: " + hex(nes.ppu.p_oam[i * 4 + 1], 2)
-				+ " AT: " + hex(nes.ppu.p_oam[i * 4 + 2], 2);
+				+ "AT: " + hex(nes.ppu.p_oam[i * 4 + 2], 2);
 
 			DrawString(516, 72 + i * 10, s);
 		}
@@ -195,6 +212,7 @@ private:
 	f32 residual_time = 0.0f;
 
 	u8 selected_palette = 0;
+	gamepad controller;
 };
 
 int main() {

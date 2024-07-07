@@ -19,7 +19,9 @@ add_executable(kap_nes_emu src/main.cpp
         src/mappers/mapper.cpp
         src/mappers/mapper.h
         src/mappers/impl/mapper_000.cpp
-        src/mappers/impl/mapper_000.h)
+        src/mappers/impl/mapper_000.h
+        src/gamepad.cpp
+        src/gamepad.h)
 
-target_link_libraries(kap_nes_emu PRIVATE opengl32 user32 gdi32 gdiplus SHlwapi dwmapi)
+target_link_libraries(kap_nes_emu PRIVATE -static opengl32 user32 gdi32 gdiplus SHlwapi dwmapi xinput)
 target_include_directories(kap_nes_emu PRIVATE src external/olcPixelEngine)

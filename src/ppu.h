@@ -133,6 +133,9 @@ private:
     u8 sprite_count{};
     u8 sprite_shifter_pattern_lo[8]{};
     u8 sprite_shifter_pattern_hi[8]{};
+
+    bool sprite_zero_hit_possible = false;
+    bool sprite_zero_being_rendered = false;
 };
 
 

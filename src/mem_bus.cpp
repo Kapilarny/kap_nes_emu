@@ -29,7 +29,7 @@ void mem_bus::clock() {
             if(dma_dummy) {
                 if(system_clock_counter % 2 == 1) {
                     dma_dummy = false;
-                }
+                }   
             } else {
                 if(system_clock_counter % 2 == 0) {
                     dma_data = cpu_read((u16)(dma_page << 8) | dma_addr);

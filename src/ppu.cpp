@@ -161,7 +161,7 @@ void ppu::clock() {
 	if(scanline >= -1 && scanline < 240) {
 		if(scanline == -1 && cycle == 1) {
 			status.vertical_blank = 0;
-
+			status.sprite_zero_hit = 0;
 			status.sprite_overflow = 0;
 
 			for(u8 i = 0; i < 8; i++) {
@@ -219,17 +219,20 @@ void ppu::clock() {
 				sprite_shifter_pattern_hi[i] = 0;
 			}
 
-			u8 nOAMEntry = 0;
-			while(nOAMEntry < 64 && sprite_count < 9) {
-				i16 diff = (i16)scanline - (i16)oam[nOAMEntry].y;
+			u8 oam_entry = 0;
+			sprite_zero_hit_possible = false;
+			while(oam_entry < 64 && sprite_count < 9) {
+				i16 diff = scanline - (i16)oam[oam_entry].y;
 				if(diff >= 0 && diff < (control.sprite_size ? 16 : 8)) {
 					if(sprite_count < 8) {
-						memcpy(&sprite_scanline[sprite_count], &p_oam[nOAMEntry], sizeof(object_attrib_entry));
+						if(oam_entry == 0) sprite_zero_hit_possible = true;
+
+						memcpy(&sprite_scanline[sprite_count], &oam[oam_entry], sizeof(object_attrib_entry));
 						sprite_count++;
 					}
 				}
 
-				nOAMEntry++;
+				oam_entry++;
 			}
 
 			status.sprite_overflow = sprite_count > 8;
@@ -343,6 +346,8 @@ void ppu::clock() {
 	u8 fg_priority = 0x00;
 
 	if(mask.render_sprites) {
+		sprite_zero_being_rendered = false;
+
 		for(u8 i = 0; i < sprite_count; i++) {
 			if(sprite_scanline[i].x == 0) {
 				u8 fg_pixel_lo = (sprite_shifter_pattern_lo[i] & 0x80) > 0;
@@ -354,7 +359,7 @@ void ppu::clock() {
 				fg_priority = (sprite_scanline[i].attribute & 0x20) == 0;
 
 				if(fg_pixel != 0) {
-					// if(i == 0) status.sprite_zero_hit = 1;
+					if(i == 0) sprite_zero_being_rendered = true;
 					break;
 				}
 			}
@@ -380,6 +385,16 @@ void ppu::clock() {
 		} else {
 			pixel = bg_pixel;
 			palette = bg_palette;
+		}
+
+		if(sprite_zero_hit_possible && sprite_zero_being_rendered) {
+			if(mask.render_background & mask.render_sprites) {
+				if(~(mask.render_background_left | mask.render_sprites_left)) {
+					if(cycle >= 9 && cycle < 258) status.sprite_zero_hit = 1;
+				} else {
+					if(cycle >= 1 && cycle < 258) status.sprite_zero_hit = 1;
+				}
+			}
 		}
 	}
 

@@ -739,8 +739,8 @@ u8 cpu6502::SBC() {
 
 	set_flag(C, temp & 0xFF00);
 	set_flag(Z, (temp & 0x00FF) == 0);
+	set_flag(V, (temp ^ (u16)a) & (temp ^ value) & 0x0080);
 	set_flag(N, temp & 0x80);
-	set_flag(V, (~(u16)a ^ (u16)fetched) & ((u16)a ^ temp) & 0x0080);
 
 	a = temp & 0x00FF;
 
