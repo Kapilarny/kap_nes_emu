@@ -122,7 +122,7 @@ private:
 		bool bButton = GetKey(olc::Key::Z).bHeld || controller.is_pressed(XINPUT_GAMEPAD_X);
 
 		bool start_button = GetKey(olc::Key::A).bHeld || controller.is_pressed(XINPUT_GAMEPAD_START);
-		bool select_button = GetKey(olc::Key::X).bHeld || controller.is_pressed(XINPUT_GAMEPAD_BACK);
+		bool select_button = GetKey(olc::Key::S).bHeld || controller.is_pressed(XINPUT_GAMEPAD_BACK);
 
 		bool up_button = GetKey(olc::Key::UP).bHeld || controller.is_pressed(XINPUT_GAMEPAD_DPAD_UP);
 		bool down_button = GetKey(olc::Key::DOWN).bHeld || controller.is_pressed(XINPUT_GAMEPAD_DPAD_DOWN);
